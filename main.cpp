@@ -45,7 +45,6 @@ int main()
     std::cout << "PERSONAL ASSISSTANT INTIALISING" << std::endl;
     std::cout << "*******************************" << std::endl;
     greeting();
-    int x = 5;
 
     return 0;
 }
