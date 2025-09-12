@@ -26,9 +26,9 @@ void greeting() {
     output = (local_tm->tm_hour < 12) ? "Good Morning" :
         (local_tm->tm_hour >= 12 && local_tm->tm_hour < 17) ? "Good Afternoon" : "Good Evening";
 
+    //Fetching windows username
     TCHAR username[UNLEN+1];
     DWORD username_len = UNLEN+1;
-
     if (GetUserName(username, &username_len)) {
             outputToVoice(output+" "+username);
     }
