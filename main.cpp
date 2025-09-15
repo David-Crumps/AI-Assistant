@@ -12,6 +12,24 @@
 #include <ctime>
 #include <chrono>
 
+#include <unordered_map>
+#include <functional>
+#include <variant>
+
+using NoArgCommand = std::function<void()>;
+using ArgCommand = std::function<void(const std::string&)>;
+using CommandVariant = std::variant<NoArgCommand, ArgCommand>;
+
+namespace SiteRegistry {
+    const std::unordered_map<std::string, std::string>& getSiteMap() {
+    static const std::unordered_map<std::string, std::string> siteMap = {
+        {"youtube", "https://www.youtube.com"}
+    };
+    return siteMap;
+  }
+}
+
+
 
 void outputToVoice(std::string phrase) {
     std::string command = "espeak \"" + phrase + "\"";
@@ -37,7 +55,7 @@ void greeting() {
     TCHAR username[UNLEN+1];
     DWORD username_len = UNLEN+1;
     if (GetUserName(username, &username_len)) {
-            outputToVoice(output+" "+username);
+            outputToVoice(output+" "+username+ ". How may I assist you today?");
     }
     else {
         std::cerr << "Invalid User" << std::endl;
@@ -60,27 +78,54 @@ void returnCurrentTime() {
     outputToVoice("The current time is "+ output);
 }
 
+void help() {
+    std::cout << "Help" << std::endl;
+}
+
+void openWebsite(const std::string& url) {
+    std::cout << "Successfully opened URL" << std::endl;
+
+}
+
+void executeCommand(const CommandVariant& cmd, const std::string& arg = "") {
+    if (std::holds_alternative<NoArgCommand>(cmd)) {
+        std::get<NoArgCommand>(cmd)();
+    }
+    else if (std::holds_alternative<ArgCommand>(cmd)) {
+        std::get<ArgCommand>(cmd)(arg);
+    }
+}
 
 
 int main()
 {
+    std::unordered_map<std::string, CommandVariant> commandMap;
+    commandMap["help"] = NoArgCommand(help);
+    commandMap["website"] = ArgCommand(openWebsite);
+
     system("cls");
     std::cout << "*******************" << std::endl;
     std::cout << "PERSONAL ASSISSTANT" << std::endl;
     std::cout << "*******************" << std::endl;
+    std::cout << "How may I assist you today?" << std::endl;
     greeting();
-    do{
-        std::cout << "How may I assist you today?" << std::endl;
-        outputToVoice("How may I assist you today?");
-        std::string command;
-        getline(std::cin, command);
+    std::cout << "***************************" << std::endl;
+    std::cout << "Type \"help\" to view commands" << std:: endl;
+    outputToVoice("Type help to view commands.");
 
-        if (command == "What is the time?") {
-            returnCurrentTime();
+    do{
+        std::string input;
+        getline(std::cin, input);
+        std::istringstream iss(input);
+        std::string command, keyword;
+        iss >> command >> keyword;
+
+        auto it = commandMap.find(command);
+        if (it != commandMap.end()) {
+            executeCommand(it->second, keyword);
         }
-        else if (command == "Exit") {
-            exit(0);
-        }
+
+
     } while (1);
     return 0;
 }
