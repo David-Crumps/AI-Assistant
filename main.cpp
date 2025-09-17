@@ -27,10 +27,28 @@ using CommandVariant = std::variant<NoArgCommand, ArgCommand>;
 namespace SiteRegistry {
     const std::unordered_map<std::string, std::string>& getSiteMap() {
     static const std::unordered_map<std::string, std::string> siteMap = {
-        {"youtube", "https://www.youtube.com"}
+        {"youtube", "https://www.youtube.com"},
+        {"twitch" , "https://www.twitch.tv"},
+        {"reddit", "https://www.reddit.com"},
+        {"maxroll", "https://maxroll.gg/"},
+        {"poe", "https://www.poe2wiki.net/wiki/Path_of_Exile_2_Wiki"},
+        {"github", "https://github.com/David-Crumps"}
     };
     return siteMap;
   }
+}
+
+namespace ProgramRegistry {
+    const std::unordered_map<std::string, std::string>& getProgramMap() {
+        static const std::unordered_map<std::string, std::string> programMap = {
+            {"notepad", "C:\\Windows\\notepad.exe"},
+            {"word", "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.exe"},
+            {"excel", "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.exe"},
+            {"powerpoint", "C:\\Program Files\\Microsoft Office\\root\\Office16\\POWERPNT.exe"},
+            {"guild_wars", "C:\\Guild Wars 2\\Guild Wars 2\\Gw2-64.exe"}
+        };
+        return programMap;
+    }
 }
 
 namespace UrlRegex {
@@ -56,17 +74,20 @@ std::tm currentLocalTime() {
 }
 
 void greeting() {
-    std::string output;
+    std::string timeOfDay;
     std::tm local_tm = currentLocalTime();
+    std::string output;
 
-    output = (local_tm.tm_hour < 12) ? "Good Morning" :
-        (local_tm.tm_hour >= 12 && local_tm.tm_hour < 17) ? "Good Afternoon" : "Good Evening";
+    timeOfDay = (local_tm.tm_hour < 12) ? "morning" :
+        (local_tm.tm_hour >= 12 && local_tm.tm_hour < 17) ? "afternoon" : "evening";
 
     //Fetching windows username
     TCHAR username[UNLEN+1];
     DWORD username_len = UNLEN+1;
     if (GetUserName(username, &username_len)) {
-            outputToVoice(output+" "+username+ ". How may I assist you today?");
+            output = "How may I assist you this "+timeOfDay+"?";
+            std::cout << output << std::endl;
+            outputToVoice("Hello "+std::string(username)+", "+output);
     }
     else {
         std::cerr << "Invalid User" << std::endl;
@@ -95,13 +116,22 @@ void closeAssistant() {
 }
 
 void help() {
-    std::cout << "*************************" << std::endl;
-    std::cout << "-> exit : Closes program" <<std::endl;
-    std::cout << "*************************" <<std::endl;
+    std::cout << "************************" << std::endl;
+    std::cout << "-> exit : Closes program" << std::endl;
+    std::cout << "************************\n" <<std::endl;
+
+    std::cout << "******************************" << std::endl;
+    std::cout << "-> time : Returns current time" << std::endl;
+    std::cout << "******************************\n" << std::endl;
+
+    std::cout << "**************************************************************************************" << std::endl;
     std::cout << "-> website <website_name> : Opens website either with predefined names or the full URL" << std::endl;
-    std::cout << "Predefined website_names: (youtube, github, twitch.tv, reddit)\nEnter the full URL for a name not currently defined." << std::endl;
-    std::cout << "****************************************************" << std::endl;
-    std::cout << "->open <program> : opens program, with with a predefined name or the full path to said program" << std::endl;
+    std::cout << "<website_name> can either be: (youtube, github, twitch, reddit, poe, maxroll) OR a valid URL" << std::endl;
+    std::cout << "********************************************************************************************\n" << std::endl;
+
+    std::cout << "**********************************************************************************************" << std::endl;
+    std::cout << "->open <program> : choose a program to open from the provided list" << std::endl;
+    std::cout << "<program> -> (notepad, word, excel, powerpoint, guild_wars)" << std::endl;
     std::cout << "**********************************************************************************************" << std::endl;
 }
 
@@ -110,7 +140,6 @@ void openWebsite(const std::string& keyword) {
     const auto& regexUrl = UrlRegex::getUrlRegex();
     auto it = map.find(keyword);
 
-    //Convert to OR statement
     if (it != map.end()) {
         std::string command = "start "+it->second;
         const char *charCommand = command.c_str();
@@ -120,11 +149,10 @@ void openWebsite(const std::string& keyword) {
         const char *charCommand = command.c_str();
         system(charCommand);
     } else {
-        std::cout << "Incorrect URL" << std::endl;
+        std::cout << "\nIncorrect URL" << std::endl;
         std::cout << "*************" << std::endl;
         outputToVoice("Incorrect URL");
     }
-
 }
 
 void executeCommand(const CommandVariant& cmd, const std::string& arg = "") {
@@ -139,19 +167,36 @@ void executeCommand(const CommandVariant& cmd, const std::string& arg = "") {
 
 int main()
 {
+    struct ProcessContext {
+        STARTUPINFOW si = {};
+        PROCESS_INFORMATION pi = {};
+    };
+    ProcessContext ctx;
+    ctx.si.cb = sizeof(ctx.si);
     std::unordered_map<std::string, CommandVariant> commandMap;
+
     commandMap["help"] = NoArgCommand(help);
     commandMap["website"] = ArgCommand(openWebsite);
     commandMap["exit"] = NoArgCommand(closeAssistant);
+    commandMap["time"] = NoArgCommand(returnCurrentTime);
+
+    commandMap["open"] = ArgCommand([&ctx](const std::string& keyword) {
+        const auto& map = ProgramRegistry::getProgramMap();
+        auto it = map.find(keyword);
+        if (it != map.end()){
+            std::wstring wideInput = std::wstring(it->second.begin(), it->second.end());
+            std::wstring quoted = L"\""+wideInput+L"\"";
+            CreateProcessW(NULL, &quoted[0], NULL, NULL, FALSE, 0, NULL, NULL, &ctx.si, &ctx.pi);
+        }
+    });
 
     system("cls");
     std::cout << "*******************" << std::endl;
     std::cout << "PERSONAL ASSISSTANT" << std::endl;
-    std::cout << "*******************" << std::endl;
-    std::cout << "How may I assist you today?" << std::endl;
+    std::cout << "*******************\n" << std::endl;
     greeting();
-    std::cout << "***************************" << std::endl;
-    std::cout << "Type \"help\" to view commands" << std:: endl;
+
+    std::cout << "Type \"help\" to view commands\n" << std:: endl;
     outputToVoice("Type help to view commands.");
 
     do{
@@ -167,8 +212,13 @@ int main()
         if (it != commandMap.end()) {
             executeCommand(it->second, keyword);
         }
+        else {
+            std::cout<< "Incorrect command" << std::endl;
+            outputToVoice("Incorrect command");
+        }
+        std::cout << "\n";
 
 
-    } while (1);
+    } while (true);
     return 0;
 }
