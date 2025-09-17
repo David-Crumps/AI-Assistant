@@ -164,7 +164,6 @@ void executeCommand(const CommandVariant& cmd, const std::string& arg = "") {
     }
 }
 
-
 int main()
 {
     struct ProcessContext {
@@ -180,7 +179,7 @@ int main()
     commandMap["exit"] = NoArgCommand(closeAssistant);
     commandMap["time"] = NoArgCommand(returnCurrentTime);
 
-    commandMap["open"] = ArgCommand([&ctx](const std::string& keyword) {
+    commandMap["program"] = ArgCommand([&ctx](const std::string& keyword) {
         const auto& map = ProgramRegistry::getProgramMap();
         auto it = map.find(keyword);
         if (it != map.end()){
